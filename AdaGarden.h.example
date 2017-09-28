@@ -1,0 +1,11 @@
+// Wifi settings
+#define WIFI_SSID       ""
+#define WIFI_PASS       ""
+
+// Adafruit IO account
+#define IO_USERNAME     ""
+#define IO_KEY          ""
+
+// Water pump relay pins
+#define PUMP_SET_PIN 14
+#define PUMP_UNSET_PIN 12
