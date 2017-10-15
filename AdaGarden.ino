@@ -32,7 +32,7 @@ DallasTemperature sensors(&oneWire);
 
 // Time 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "1.openwrt.pool.ntp.org");
+NTPClient timeClient(ntpUDP);
 
 // Sketch variables
 typedef struct {
@@ -53,7 +53,24 @@ uint32_t pump_max_interval = 10;
 
 void setup() {
   pinMode(PUMP_SET_PIN, OUTPUT);
+  pinMode(FAN_SET_PIN, OUTPUT);
+  pinMode(FAN_UNSET_PIN, OUTPUT);
+
+  if(sensor.begin()){
+    Serial.println("Temp/RH Sensor found");
+  } else {
+    Serial.println("Temp/RH Sensor not found");
+  }
   
+  float board_temp = sensor.readTemperature();
+
+  // Start fan when its hot (before connecting to wifi)
+  if(board_temp > 20.0) {
+    openFan();
+  } else {
+    closeFan(); 
+  }
+    
   // Start the serial connection
   Serial.begin(115200);
   // Wait for serial monitor to open
@@ -83,15 +100,10 @@ void setup() {
   // We are connected
   printWifiDetails();
 
-  if(sensor.begin()){
-    Serial.println("Temp/RH Sensor found");
-  } else {
-    Serial.println("Temp/RH Sensor not found");
-  }
-
   sensors.begin();
 
   // Sync time
+  timeClient.begin();
   setSyncProvider(getNtpTime);
   while(timeStatus() == timeNotSet) { delay(50); }
 }
@@ -105,13 +117,28 @@ void loop() {
     store_updated = true;
     garden_pump->save(0);
   }
+
+  Serial.println("Time now is :");
+  Serial.println(now());
   
+  float board_temp = sensor.readTemperature();
+  float board_humidity = sensor.readHumidity();    
+
+  // Start fan when its hot
+  if(board_temp > 20.0) {
+    openFan();
+    Serial.println("opening fan");
+  } else {
+    closeFan(); 
+    Serial.println("closing fan");
+  }
+    
   if(now() > (rtcData.store.last_push + push_interval)) {
     rtcData.store.last_push = now();
     store_updated = true;
-    garden_board_temp->save(sensor.readTemperature());
-    garden_board_rh->save(sensor.readHumidity());
     sensors.requestTemperatures();
+    garden_board_temp->save(board_temp);
+    garden_board_rh->save(board_humidity);
     garden_outdoor_temp->save(sensors.getTempCByIndex(0));
   }
 
@@ -128,8 +155,10 @@ void loop() {
     saveRtc();
   }
   
-  // Deep sleep 10 seconds
-  ESP.deepSleep(10e6); 
+  io.run();
+  
+  // Deep sleep 45 seconds
+  ESP.deepSleep(45e6);
 }
 
 void handlePump(AdafruitIO_Data *data) {
@@ -153,6 +182,18 @@ void openRelay() {
 void closeRelay() {
   digitalWrite(PUMP_SET_PIN, LOW);
   rtcData.store.pump_is_open = false;
+}
+
+void openFan() {
+  digitalWrite(FAN_SET_PIN, HIGH);
+  delay(50);
+  digitalWrite(FAN_SET_PIN, LOW);
+}
+
+void closeFan() {
+  digitalWrite(FAN_UNSET_PIN, HIGH);
+  delay(50);
+  digitalWrite(FAN_UNSET_PIN, LOW);
 }
 
 void printWifiDetails() {
