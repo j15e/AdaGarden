@@ -9,6 +9,8 @@
 #include "Adafruit_Si7021.h"
 #include "DallasTemperature.h"
 #include "OneWire.h"
+#include <Wire.h>
+#include <Adafruit_INA219.h>
 // Time 
 #include <NTPClient.h>
 #include "Time.h"
@@ -24,11 +26,15 @@ AdafruitIO_Feed *garden_outdoor_temp = io.feed("garden-outdoor-temp");
 AdafruitIO_Feed *garden_board_temp = io.feed("garden-board-temp");
 AdafruitIO_Feed *garden_board_rh = io.feed("garden-board-rh");
 AdafruitIO_Feed *garden_free_heap = io.feed("garden-free-heap");
+AdafruitIO_Feed *garden_battery_voltage = io.feed("garden-battery-voltage");
+AdafruitIO_Feed *garden_battery_current = io.feed("garden-battery-current");
 
 // Sensors
 Adafruit_Si7021 sensor = Adafruit_Si7021();
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
+Adafruit_INA219 ina219;
+Adafruit_INA219 ina219b;
 
 // Time 
 WiFiUDP ntpUDP;
@@ -70,6 +76,12 @@ void setup() {
   } else {
     closeFan(); 
   }
+  
+  // Start current sensors
+  ina219.begin(0x41);
+  ina219.setCalibration_16V_400mA();
+  ina219b.begin(0x44);
+  ina219b.setCalibration_16V_400mA();
     
   // Start the serial connection
   Serial.begin(115200);
@@ -110,7 +122,7 @@ void setup() {
 
 void loop() {
   bool store_updated = false;
-  
+   
   // Max pump run time
   if(rtcData.store.pump_is_open && now() > (rtcData.store.pump_last_open + pump_max_interval)) {
     closeRelay();
@@ -122,8 +134,29 @@ void loop() {
   Serial.println(now());
   
   float board_temp = sensor.readTemperature();
-  float board_humidity = sensor.readHumidity();    
+  float board_humidity = sensor.readHumidity();
+  Serial.print("Board Temp:       "); Serial.print(board_temp); Serial.println("c");
+  Serial.println("");
+  
+  float shuntvoltage = ina219.getShuntVoltage_mV();
+  float busvoltage = ina219.getBusVoltage_V();
+  float current_mA = ina219.getCurrent_mA();
+  float loadvoltage = busvoltage + (shuntvoltage / 1000);  
+  Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+  Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
 
+  
+  float shuntvoltage_b = ina219b.getShuntVoltage_mV();
+  float busvoltage_b = ina219b.getBusVoltage_V();
+  float current_mA_b = ina219b.getCurrent_mA();
+  float loadvoltage_b = busvoltage_b + (shuntvoltage_b / 1000);  
+  Serial.print("Bus Voltage B:   "); Serial.print(busvoltage_b); Serial.println(" V");
+  Serial.print("Shunt Voltage B: "); Serial.print(shuntvoltage_b); Serial.println(" mV");
+  Serial.print("Load Voltage B:  "); Serial.print(loadvoltage_b); Serial.println(" V");
+  Serial.print("Current:       "); Serial.print(current_mA_b); Serial.println(" mA");
+  
   // Start fan when its hot
   if(board_temp > 20.0) {
     openFan();
@@ -137,9 +170,12 @@ void loop() {
     rtcData.store.last_push = now();
     store_updated = true;
     sensors.requestTemperatures();
+    
     garden_board_temp->save(board_temp);
     garden_board_rh->save(board_humidity);
     garden_outdoor_temp->save(sensors.getTempCByIndex(0));
+    garden_battery_voltage->save(loadvoltage);
+    garden_battery_current->save(current_mA);
   }
 
   
