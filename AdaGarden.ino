@@ -71,7 +71,7 @@ void setup() {
   float board_temp = sensor.readTemperature();
 
   // Start fan when its hot (before connecting to wifi)
-  if(board_temp > 20.0) {
+  if(board_temp > FAN_TRIGGER_TEMP) {
     openFan();
   } else {
     closeFan(); 
@@ -158,7 +158,7 @@ void loop() {
   Serial.print("Current:       "); Serial.print(current_mA_b); Serial.println(" mA");
   
   // Start fan when its hot
-  if(board_temp > 20.0) {
+  if(board_temp > FAN_TRIGGER_TEMP) {
     openFan();
     Serial.println("opening fan");
   } else {

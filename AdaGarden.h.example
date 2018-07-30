@@ -8,4 +8,13 @@
 
 // Water pump relay pins
 #define PUMP_SET_PIN 14
-#define PUMP_UNSET_PIN 12
+
+// External temprature sensor pin
+#define ONE_WIRE_BUS 2
+
+//Fan latching relay pins
+#define FAN_SET_PIN 12
+#define FAN_UNSET_PIN 13
+
+// Temp to trigger box fan
+#define FAN_TRIGGER_TEMP 24.0
