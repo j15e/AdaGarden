@@ -192,9 +192,6 @@ void loop() {
   }
   
   io.run();
-  
-  // Deep sleep 45 seconds
-  ESP.deepSleep(45e6);
 }
 
 void handlePump(AdafruitIO_Data *data) {
