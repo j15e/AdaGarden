@@ -55,7 +55,7 @@ struct {
 
 uint32_t push_interval = 60;
 uint32_t push_debug_interval = 5 * 60;
-uint32_t pump_max_interval = 10;
+uint32_t pump_max_interval = 5 * 60;
 
 void setup() {
   pinMode(PUMP_SET_PIN, OUTPUT);
